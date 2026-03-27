@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+models/*.pkl
+models/*.json
+data/raw/*.csv
+tmp_smoke/
+test_artifacts/
+.pytest_tmp/
+pytest-cache-files-*/
