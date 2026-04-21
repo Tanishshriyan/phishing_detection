@@ -17,7 +17,6 @@ A phishing URL detection project with:
 ```text
 phishing-detection/
 |- app/
-|  |- app.py
 |  |- static/
 |  |  |- dashboard.js
 |  |  `- styles.css
@@ -37,6 +36,8 @@ phishing-detection/
 |  `- predict.py
 |- tests/
 |  `- test_model.py
+|- Procfile
+|- app.py
 |- requirements.txt
 `- README.md
 ```
@@ -60,7 +61,7 @@ python src/model_training.py --data-path data/raw/your_dataset.csv --test-size 0
 
 ## Run Dashboard
 ```bash
-python app/app.py
+python app.py
 ```
 
 Open:
@@ -70,6 +71,7 @@ Open:
 - `GET /api/health`
 - `GET /api/status`
 - `POST /api/predict`
+- `POST /predict`
 
 Example `POST /api/predict` body:
 ```json
