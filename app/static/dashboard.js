@@ -1,4 +1,5 @@
 const state = {
+  currentUrl: "",
   history: [],
 };
 
@@ -7,92 +8,159 @@ const predictForm = document.getElementById("predictForm");
 const analyzeBtn = document.getElementById("analyzeBtn");
 
 const resultCard = document.getElementById("resultCard");
+const resultIcon = document.getElementById("resultIcon");
 const resultLabel = document.getElementById("resultLabel");
+const resultAdvice = document.getElementById("resultAdvice");
 const resultUrl = document.getElementById("resultUrl");
-const resultConfidence = document.getElementById("resultConfidence");
 const riskLevel = document.getElementById("riskLevel");
-const meterFill = document.getElementById("meterFill");
-const signalList = document.getElementById("signalList");
-
-const metricAccuracy = document.getElementById("metricAccuracy");
-const metricF1 = document.getElementById("metricF1");
-const metricPrecision = document.getElementById("metricPrecision");
-const metricRecall = document.getElementById("metricRecall");
-const datasetRows = document.getElementById("datasetRows");
-const trainTestRows = document.getElementById("trainTestRows");
-const trainedAt = document.getElementById("trainedAt");
-const datasetSource = document.getElementById("datasetSource");
+const reasonBox = document.getElementById("reasonBox");
+const reasonList = document.getElementById("reasonList");
+const copyBtn = document.getElementById("copyBtn");
+const clearBtn = document.getElementById("clearBtn");
+const clearHistoryBtn = document.getElementById("clearHistoryBtn");
 const historyBody = document.getElementById("historyBody");
 
 function setBusy(isBusy) {
   analyzeBtn.disabled = isBusy;
-  analyzeBtn.textContent = isBusy ? "Analyzing..." : "Analyze URL";
+  analyzeBtn.textContent = isBusy ? "Checking..." : "Check";
 }
 
-function prettifySignal(signal) {
-  return signal
-    .replace("brand-impersonation:", "brand impersonation: ")
-    .replaceAll("-", " ");
+function sentenceJoin(values) {
+  if (!values.length) {
+    return "";
+  }
+  if (values.length === 1) {
+    return values[0];
+  }
+  return `${values.slice(0, -1).join(", ")} and ${values[values.length - 1]}`;
 }
 
-function renderResult(result) {
-  resultCard.classList.remove("hidden");
-  resultLabel.classList.remove("bad", "good");
+function plainSignal(signal) {
+  const [name, rawDetail = ""] = String(signal).split(":");
+  const details = rawDetail.split(",").filter(Boolean);
 
-  const isBad = result.is_phishing;
-  resultLabel.textContent = isBad ? "Phishing" : "Legitimate";
-  resultLabel.classList.add(isBad ? "bad" : "good");
-
-  resultUrl.textContent = result.url;
-  riskLevel.textContent = `risk: ${result.risk_level}`;
-  resultConfidence.textContent = `Confidence: ${(result.confidence * 100).toFixed(2)}%`;
-  meterFill.style.width = `${(result.phishing_probability * 100).toFixed(2)}%`;
-
-  const signals = Array.isArray(result.signals) ? result.signals : [];
-  if (signals.length === 0) {
-    signalList.innerHTML = `<li class="muted">No major phishing signals were triggered.</li>`;
-  } else {
-    signalList.innerHTML = signals.map((signal) => `<li>${prettifySignal(signal)}</li>`).join("");
+  switch (name) {
+    case "brand-impersonation":
+      return `It mentions ${sentenceJoin(details)} but does not use the official website address.`;
+    case "embedded-official-domain":
+      return `It hides a familiar brand name inside a different website address.`;
+    case "ip-address-host":
+      return "It uses a number-based website address, which is uncommon for trusted login pages.";
+    case "risky-tld":
+      return "It uses a web ending often seen in suspicious links.";
+    case "at-symbol-obfuscation":
+      return "It contains an @ symbol, which can disguise where the link really goes.";
+    case "url-shortener":
+      return "It is a shortened link, so the destination is not obvious.";
+    case "phishing-keywords":
+      return "It uses words often found in fake account, payment, or password pages.";
+    case "http-on-sensitive-brand-domain":
+      return "It is not using a secure connection for a sensitive brand link.";
+    case "http-with-phishing-keywords":
+      return "It asks for sensitive action without using a secure connection.";
+    case "deep-subdomain-chain":
+      return "It has too many website sections before the main domain.";
+    case "excessive-hyphenation":
+      return "It uses repeated dashes, which can make fake domains look convincing.";
+    case "credential-harvest-pattern":
+      return "It looks like a page designed to collect login or payment details.";
+    default:
+      return "Something about this link looks unusual.";
   }
 }
 
-function renderHistory() {
-  if (state.history.length === 0) {
-    historyBody.innerHTML = `<tr><td colspan="3" class="muted">No checks yet.</td></tr>`;
+function riskCopy(result) {
+  if (!result.is_phishing) {
+    return {
+      icon: "OK",
+      label: "Looks safe",
+      note: "No obvious warning",
+      advice: "No obvious phishing signs were found. Still make sure you trust who sent it before entering private information.",
+    };
+  }
+
+  if (result.risk_level === "high") {
+    return {
+      icon: "!",
+      label: "Avoid this link",
+      note: "High warning",
+      advice: "Do not open this link or enter any passwords, card details, or one-time codes. Use the official app or type the website address yourself.",
+    };
+  }
+
+  return {
+    icon: "!",
+    label: "Be careful",
+    note: "Needs caution",
+    advice: "This link has warning signs. Open it only if you are sure who sent it and why.",
+  };
+}
+
+function replaceChildrenWithText(parent, tagName, text, className) {
+  const element = document.createElement(tagName);
+  element.textContent = text;
+  if (className) {
+    element.className = className;
+  }
+  parent.replaceChildren(element);
+}
+
+function renderReasons(signals) {
+  reasonList.replaceChildren();
+
+  if (!signals.length) {
+    reasonBox.classList.add("hidden");
     return;
   }
 
-  historyBody.innerHTML = state.history
-    .map(
-      (item) => `
-      <tr>
-        <td title="${item.url}">${item.url}</td>
-        <td>${item.prediction}</td>
-        <td>${(item.confidence * 100).toFixed(2)}%</td>
-      </tr>
-    `
-    )
-    .join("");
+  for (const signal of signals) {
+    const item = document.createElement("li");
+    item.textContent = plainSignal(signal);
+    reasonList.appendChild(item);
+  }
+
+  reasonBox.classList.remove("hidden");
 }
 
-function setMetrics(status) {
-  const metrics = status.metrics || {};
-  metricAccuracy.textContent = metrics.accuracy ? metrics.accuracy.toFixed(4) : "-";
-  metricF1.textContent = metrics.f1_score ? metrics.f1_score.toFixed(4) : "-";
-  metricPrecision.textContent = metrics.precision ? metrics.precision.toFixed(4) : "-";
-  metricRecall.textContent = metrics.recall ? metrics.recall.toFixed(4) : "-";
-  datasetRows.textContent = status.dataset_rows ?? "-";
-  trainTestRows.textContent =
-    status.train_rows && status.test_rows ? `${status.train_rows} / ${status.test_rows}` : "-";
-  trainedAt.textContent = status.trained_at_utc ?? "-";
-  datasetSource.textContent = status.generated_dataset ? "synthetic_urls.csv (auto)" : status.dataset_path ?? "-";
+function renderResult(result) {
+  const copy = riskCopy(result);
+  const isBad = Boolean(result.is_phishing);
+  const signals = Array.isArray(result.signals) ? result.signals : [];
+
+  state.currentUrl = result.url || "";
+
+  resultCard.classList.remove("hidden", "good", "bad");
+  resultCard.classList.add(isBad ? "bad" : "good");
+  resultIcon.textContent = copy.icon;
+  resultLabel.textContent = copy.label;
+  riskLevel.textContent = copy.note;
+  resultAdvice.textContent = copy.advice;
+  resultUrl.textContent = state.currentUrl;
+  renderReasons(isBad ? signals : []);
 }
 
-async function loadStatus() {
-  const response = await fetch("/api/status");
-  const payload = await response.json();
-  if (payload.ok) {
-    setMetrics(payload);
+function renderHistory() {
+  historyBody.replaceChildren();
+
+  if (state.history.length === 0) {
+    replaceChildrenWithText(historyBody, "p", "No links checked yet.", "empty-state");
+    return;
+  }
+
+  for (const item of state.history) {
+    const row = document.createElement("div");
+    row.className = "history-item";
+
+    const url = document.createElement("p");
+    url.className = "history-url";
+    url.textContent = item.url;
+
+    const status = document.createElement("span");
+    status.className = `history-status ${item.is_phishing ? "bad" : "good"}`;
+    status.textContent = item.is_phishing ? "Avoid" : "Looks safe";
+
+    row.append(url, status);
+    historyBody.appendChild(row);
   }
 }
 
@@ -114,20 +182,48 @@ predictForm.addEventListener("submit", async (event) => {
     });
     const payload = await response.json();
     if (!payload.ok) {
-      throw new Error(payload.error || "Prediction failed");
+      throw new Error(payload.error || "The link could not be checked.");
     }
 
     renderResult(payload.result);
     state.history.unshift(payload.result);
-    state.history = state.history.slice(0, 8);
+    state.history = state.history.slice(0, 6);
     renderHistory();
   } catch (error) {
-    alert(error.message || "Unable to analyze this URL");
+    alert(error.message || "Unable to check this link right now.");
   } finally {
     setBusy(false);
   }
 });
 
-loadStatus().catch(() => {
-  datasetSource.textContent = "Unable to load model status";
+copyBtn.addEventListener("click", async () => {
+  if (!state.currentUrl) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(state.currentUrl);
+    copyBtn.textContent = "Copied";
+    window.setTimeout(() => {
+      copyBtn.textContent = "Copy link";
+    }, 1400);
+  } catch {
+    copyBtn.textContent = "Copy failed";
+    window.setTimeout(() => {
+      copyBtn.textContent = "Copy link";
+    }, 1400);
+  }
+});
+
+clearBtn.addEventListener("click", () => {
+  resultCard.classList.add("hidden");
+  reasonBox.classList.add("hidden");
+  state.currentUrl = "";
+  urlInput.value = "";
+  urlInput.focus();
+});
+
+clearHistoryBtn.addEventListener("click", () => {
+  state.history = [];
+  renderHistory();
 });

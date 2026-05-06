@@ -3,115 +3,88 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Phishing Guard Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>SafeLink Checker</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-  <div class="bg-shape shape-a"></div>
-  <div class="bg-shape shape-b"></div>
-  <main class="container">
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Real-Time URL Threat Scanner</p>
-        <h1>Phishing Detection Dashboard</h1>
-        <p class="subtitle">
-          Paste any URL and get an instant safety verdict from the pre-trained phishing detector.
-        </p>
-      </div>
+  <main class="shell">
+    <header class="app-header">
+      <a class="brand" href="/" aria-label="SafeLink Checker home">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span>SafeLink Checker</span>
+      </a>
+      <span class="status-pill">Fast check</span>
     </header>
 
-    <section class="grid">
-      <article class="panel">
-        <h2>URL Analyzer</h2>
-        <form id="predictForm">
-          <label for="urlInput">Enter URL</label>
+    <section class="checker-panel">
+      <div class="intro">
+        <p class="eyebrow">Simple URL safety check</p>
+        <h1>Check a link before you open it.</h1>
+        <p class="lede">
+          Paste any website address and get a clear recommendation in seconds.
+        </p>
+      </div>
+
+      <form id="predictForm" class="checker-form">
+        <label for="urlInput">Website link</label>
+        <div class="input-row">
           <input
             id="urlInput"
             name="url"
             type="text"
-            placeholder="https://example.com"
+            placeholder="example.com/login"
             autocomplete="off"
+            spellcheck="false"
             required
           >
-
-          <button class="primary-btn" id="analyzeBtn" type="submit">Analyze URL</button>
-        </form>
-
-        <div class="result hidden" id="resultCard">
-          <div class="result-head">
-            <span id="resultLabel" class="badge">Pending</span>
-            <span id="riskLevel" class="risk">risk: -</span>
-          </div>
-          <p id="resultUrl" class="mono"></p>
-          <div class="meter-wrap">
-            <div class="meter">
-              <div id="meterFill" class="meter-fill"></div>
-            </div>
-            <p id="resultConfidence">Confidence: -</p>
-          </div>
-          <div class="signal-box">
-            <p class="signal-title">Triggered safety signals</p>
-            <ul id="signalList" class="signal-list">
-              <li class="muted">No signal details yet.</li>
-            </ul>
-          </div>
+          <button class="primary-btn" id="analyzeBtn" type="submit">Check</button>
         </div>
-      </article>
+        <p class="helper-text">Copy the link without opening it, then paste it here.</p>
+      </form>
+    </section>
 
+    <section class="result-panel hidden" id="resultCard" aria-live="polite">
+      <div class="result-summary">
+        <span class="result-icon" id="resultIcon" aria-hidden="true">OK</span>
+        <div>
+          <p class="result-note" id="riskLevel">Result</p>
+          <h2 id="resultLabel">Ready to check</h2>
+          <p class="result-advice" id="resultAdvice"></p>
+        </div>
+      </div>
+
+      <p id="resultUrl" class="checked-url"></p>
+
+      <div class="reason-box hidden" id="reasonBox">
+        <p>What looked unusual</p>
+        <ul id="reasonList" class="reason-list"></ul>
+      </div>
+
+      <div class="result-actions">
+        <button class="secondary-btn" id="copyBtn" type="button">Copy link</button>
+        <button class="secondary-btn" id="clearBtn" type="button">Check another</button>
+      </div>
+    </section>
+
+    <section class="content-grid">
       <article class="panel">
-        <h2>Model Snapshot</h2>
-        <div class="stats">
-          <div class="stat-card">
-            <p>Accuracy</p>
-            <strong id="metricAccuracy">-</strong>
-          </div>
-          <div class="stat-card">
-            <p>F1 Score</p>
-            <strong id="metricF1">-</strong>
-          </div>
-          <div class="stat-card">
-            <p>Precision</p>
-            <strong id="metricPrecision">-</strong>
-          </div>
-          <div class="stat-card">
-            <p>Recall</p>
-            <strong id="metricRecall">-</strong>
-          </div>
-        </div>
+        <h2>Safer habits</h2>
+        <ul class="tip-list">
+          <li>Open banking, payment, and email sites from the official app or a saved bookmark.</li>
+          <li>Do not enter passwords or one-time codes after clicking a link in an unexpected message.</li>
+          <li>Be careful with shortened links, urgent wording, odd spelling, and extra-long addresses.</li>
+        </ul>
+      </article>
 
-        <div class="meta">
-          <p><span>Samples:</span> <strong id="datasetRows">-</strong></p>
-          <p><span>Train / Test:</span> <strong id="trainTestRows">-</strong></p>
-          <p><span>Trained (UTC):</span> <strong id="trainedAt">-</strong></p>
-          <p><span>Dataset Source:</span> <strong id="datasetSource">-</strong></p>
+      <article class="panel history-panel">
+        <div class="panel-title-row">
+          <h2>Recent checks</h2>
+          <button class="text-btn" id="clearHistoryBtn" type="button">Clear</button>
+        </div>
+        <div class="history-list" id="historyBody">
+          <p class="empty-state">No links checked yet.</p>
         </div>
       </article>
-    </section>
-
-    <section class="panel info-panel">
-      <h2>Safety Guidance</h2>
-      <p class="muted">Always verify payment or account links from official apps or manually typed domains.</p>
-      <p class="muted">Never submit passwords or OTP codes on unexpected login pages.</p>
-      <p class="muted">If a URL looks urgent, shortened, or brand-mismatched, treat it as unsafe.</p>
-    </section>
-
-    <section class="panel history-panel">
-      <h2>Recent Checks</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>URL</th>
-            <th>Prediction</th>
-            <th>Confidence</th>
-          </tr>
-        </thead>
-        <tbody id="historyBody">
-          <tr><td colspan="3" class="muted">No checks yet.</td></tr>
-        </tbody>
-      </table>
     </section>
   </main>
   <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
