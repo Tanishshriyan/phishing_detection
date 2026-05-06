@@ -126,6 +126,8 @@ def _heuristic_assessment(url: str, features: dict[str, float]) -> tuple[float, 
     brand_hits = _brand_impersonation_hits(hostname, lowered)
     embedded_domain_hits = _embedded_official_domain_hits(hostname)
     suspicious_hits = features.get("suspicious_keyword_hits", 0.0)
+    host_threat_hits = features.get("host_threat_keyword_hits", 0.0)
+    uses_generic_hosting = features.get("has_generic_hosting_domain", 0.0) >= 1
 
     if brand_hits:
         score += 3.0
@@ -133,6 +135,12 @@ def _heuristic_assessment(url: str, features: dict[str, float]) -> tuple[float, 
     if embedded_domain_hits:
         score += 2.6
         signals.append(f"embedded-official-domain:{','.join(embedded_domain_hits[:3])}")
+    if uses_generic_hosting and host_threat_hits >= 1:
+        score += 2.6
+        signals.append("generic-hosting-phishing-keywords")
+        if scheme == "http":
+            score += 1.2
+            signals.append("http-on-hosted-app")
 
     if features.get("has_ip_address", 0) >= 1:
         score += 3.0
@@ -181,6 +189,11 @@ def _heuristic_assessment(url: str, features: dict[str, float]) -> tuple[float, 
         or bool(embedded_domain_hits)
         or (brand_hits and suspicious_hits >= 1)
         or (features.get("has_ip_address", 0) >= 1 and suspicious_hits >= 1)
+        or (
+            uses_generic_hosting
+            and host_threat_hits >= 1
+            and (scheme == "http" or features.get("count_hyphen", 0) >= 2 or suspicious_hits >= 2)
+        )
         or (scheme == "http" and len(official_brand_hits) > 0)
     )
 

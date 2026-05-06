@@ -20,15 +20,41 @@ SUSPICIOUS_KEYWORDS = {
     "gift",
     "invoice",
     "login",
+    "malware",
     "password",
     "pay",
+    "phishing",
     "secure",
     "signin",
+    "scam",
     "support",
     "unlock",
     "update",
     "verify",
     "wallet",
+}
+
+THREAT_KEYWORDS = {
+    "fraud",
+    "malware",
+    "phishing",
+    "scam",
+}
+
+GENERIC_HOSTING_DOMAINS = {
+    "firebaseapp.com",
+    "fly.dev",
+    "github.io",
+    "glitch.me",
+    "herokuapp.com",
+    "netlify.app",
+    "onrender.com",
+    "pages.dev",
+    "railway.app",
+    "replit.app",
+    "surge.sh",
+    "vercel.app",
+    "web.app",
 }
 
 SUSPICIOUS_TLDS = {
@@ -89,6 +115,11 @@ def _is_ip_address(hostname: str) -> int:
         return 0
 
 
+def _matches_domain(hostname: str, domains: set[str]) -> int:
+    lowered = hostname.lower()
+    return int(any(lowered == domain or lowered.endswith(f".{domain}") for domain in domains))
+
+
 def _shannon_entropy(text: str) -> float:
     if not text:
         return 0.0
@@ -103,15 +134,19 @@ def extract_url_features(url: str) -> dict[str, float]:
     parsed = urlparse(normalized)
     lowered = normalized.lower()
     hostname = parsed.hostname or ""
+    hostname_lowered = hostname.lower()
     path = parsed.path or ""
     query = parsed.query or ""
     tld = hostname.rsplit(".", 1)[-1] if "." in hostname else ""
 
     token_candidates = [token for token in re.split(r"[\W_]+", lowered) if token]
+    host_tokens = [token for token in re.split(r"[\W_]+", hostname_lowered) if token]
     digit_count = sum(char.isdigit() for char in normalized)
     letter_count = sum(char.isalpha() for char in normalized)
     special_count = sum(not char.isalnum() for char in normalized)
     suspicious_hits = sum(keyword in lowered for keyword in SUSPICIOUS_KEYWORDS)
+    host_suspicious_hits = sum(token in SUSPICIOUS_KEYWORDS for token in host_tokens)
+    host_threat_hits = sum(token in THREAT_KEYWORDS for token in host_tokens)
     subdomain_count = max(hostname.count(".") - 1, 0)
     query_param_count = query.count("&") + 1 if query else 0
 
@@ -142,8 +177,11 @@ def extract_url_features(url: str) -> dict[str, float]:
         "uses_https": float(parsed.scheme.lower() == "https"),
         "has_ip_address": float(_is_ip_address(hostname)),
         "has_suspicious_tld": float(tld in SUSPICIOUS_TLDS),
+        "has_generic_hosting_domain": float(_matches_domain(hostname, GENERIC_HOSTING_DOMAINS)),
         "has_shortener": float(hostname in URL_SHORTENERS),
         "suspicious_keyword_hits": float(suspicious_hits),
+        "host_suspicious_keyword_hits": float(host_suspicious_hits),
+        "host_threat_keyword_hits": float(host_threat_hits),
         "contains_login_hint": float(any(word in lowered for word in ("login", "signin", "verify"))),
         "contains_security_hint": float(any(word in lowered for word in ("secure", "update", "confirm"))),
         "entropy": float(_shannon_entropy(normalized)),

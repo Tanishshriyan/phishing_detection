@@ -52,10 +52,14 @@ function plainSignal(signal) {
       return "It contains an @ symbol, which can disguise where the link really goes.";
     case "url-shortener":
       return "It is a shortened link, so the destination is not obvious.";
+    case "generic-hosting-phishing-keywords":
+      return "It uses explicit threat wording on a shared app-hosting domain.";
     case "phishing-keywords":
       return "It uses words often found in fake account, payment, or password pages.";
     case "http-on-sensitive-brand-domain":
       return "It is not using a secure connection for a sensitive brand link.";
+    case "http-on-hosted-app":
+      return "It uses an unsecured connection on a hosted app link.";
     case "http-with-phishing-keywords":
       return "It asks for sensitive action without using a secure connection.";
     case "deep-subdomain-chain":

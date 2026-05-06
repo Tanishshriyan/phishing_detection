@@ -29,7 +29,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src.data_preprocessing import load_raw_dataset
-from src.feature_extraction import extract_features_dataframe
+from src.feature_extraction import GENERIC_HOSTING_DOMAINS, extract_features_dataframe
 
 LEGIT_DOMAINS = [
     "google.com",
@@ -76,6 +76,26 @@ PHISH_PATHS = [
     "/update-payment",
     "/confirm-password",
     "/recover/access",
+]
+
+CURATED_LEGIT_URLS = [
+    "https://portfolio-demo.onrender.com",
+    "https://docs-preview.vercel.app/help",
+    "https://static-site.netlify.app/about",
+    "https://project-notes.pages.dev/security/phishing-awareness",
+    "https://team-dashboard.web.app/login",
+    "https://openai.com/research",
+    "https://github.com/security/advisories",
+]
+
+CURATED_PHISHING_URLS = [
+    "http://phishing-detection-76wr.onrender.com",
+    "http://phishing-check-login.onrender.com/verify-account",
+    "https://scam-wallet-verify.vercel.app/connect",
+    "http://fraud-alert-payment.netlify.app/update-payment",
+    "https://malware-security-check.pages.dev/login",
+    "http://paypal-login-security.example.com/verify-account",
+    "https://www.apple.com.co",
 ]
 
 
@@ -130,6 +150,25 @@ def generate_synthetic_dataset(num_samples: int = 2200, random_state: int = 42) 
 
     data = pd.DataFrame(rows)
     return data.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
+
+
+def _curated_training_examples() -> pd.DataFrame:
+    rows = [{"url": url, "label": 0} for url in CURATED_LEGIT_URLS]
+    rows.extend({"url": url, "label": 1} for url in CURATED_PHISHING_URLS)
+
+    generic_hosts = sorted(GENERIC_HOSTING_DOMAINS)
+    for host in generic_hosts:
+        rows.append({"url": f"https://demo-app.{host}/status", "label": 0})
+        rows.append({"url": f"http://phishing-update-demo.{host}/verify-account", "label": 1})
+
+    return pd.DataFrame(rows)
+
+
+def _append_curated_examples(dataset: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    curated = _curated_training_examples()
+    combined = pd.concat([dataset, curated], ignore_index=True)
+    combined = combined.drop_duplicates(subset=["url"], keep="last").reset_index(drop=True)
+    return combined, int(len(curated))
 
 
 def _to_builtin(value: Any) -> Any:
@@ -197,6 +236,7 @@ def train_model(
         resolved_path.parent.mkdir(parents=True, exist_ok=True)
         dataset.to_csv(resolved_path, index=False)
 
+    dataset, curated_rows = _append_curated_examples(dataset)
     x = extract_features_dataframe(dataset["url"].tolist())
     y = dataset["label"].astype(int)
     if x.empty:
@@ -228,6 +268,7 @@ def train_model(
         "trained_at_utc": datetime.now(timezone.utc).isoformat(),
         "dataset_path": str(resolved_path),
         "dataset_rows": int(len(dataset)),
+        "curated_rows": curated_rows,
         "generated_dataset": generated_dataset,
         "train_rows": int(len(x_train)),
         "test_rows": int(len(x_test)),
@@ -241,6 +282,7 @@ def train_model(
                 "trained_at_utc": artifact["trained_at_utc"],
                 "dataset_path": artifact["dataset_path"],
                 "dataset_rows": artifact["dataset_rows"],
+                "curated_rows": artifact["curated_rows"],
                 "generated_dataset": artifact["generated_dataset"],
                 "metrics": artifact["metrics"],
             },
@@ -280,6 +322,7 @@ if __name__ == "__main__":
     payload = {
         "dataset_path": trained_artifact["dataset_path"],
         "dataset_rows": trained_artifact["dataset_rows"],
+        "curated_rows": trained_artifact["curated_rows"],
         "generated_dataset": trained_artifact["generated_dataset"],
         "model_metrics": trained_artifact["metrics"],
     }

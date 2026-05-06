@@ -66,3 +66,10 @@ def test_train_and_predict_roundtrip():
 
     embedded_brand_domain = predict_url("https://www.apple.com.co", artifact=loaded)
     assert embedded_brand_domain["is_phishing"] is True
+
+    reported_render_url = predict_url("http://phishing-detection-76wr.onrender.com", artifact=loaded)
+    assert reported_render_url["is_phishing"] is True
+    assert "generic-hosting-phishing-keywords" in reported_render_url["signals"]
+
+    neutral_render_url = predict_url("https://portfolio-demo.onrender.com", artifact=loaded)
+    assert neutral_render_url["is_phishing"] is False

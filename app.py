@@ -75,6 +75,7 @@ def create_app() -> Flask:
                     "ok": True,
                     "dataset_path": artifact.get("dataset_path"),
                     "dataset_rows": artifact.get("dataset_rows"),
+                    "curated_rows": artifact.get("curated_rows"),
                     "generated_dataset": artifact.get("generated_dataset"),
                     "train_rows": artifact.get("train_rows"),
                     "test_rows": artifact.get("test_rows"),
