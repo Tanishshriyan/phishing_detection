@@ -27,6 +27,7 @@ SUSPICIOUS_KEYWORDS = {
     "secure",
     "signin",
     "scam",
+    "security",
     "support",
     "unlock",
     "update",
@@ -95,6 +96,40 @@ URL_SHORTENERS = {
     "tinyurl.com",
 }
 
+KNOWN_BRANDS = {
+    "amazon",
+    "apple",
+    "bankofamerica",
+    "chase",
+    "facebook",
+    "github",
+    "google",
+    "instagram",
+    "microsoft",
+    "netflix",
+    "openai",
+    "paypal",
+    "whatsapp",
+}
+
+CONFUSABLE_CHAR_MAP = str.maketrans(
+    {
+        "0": "o",
+        "1": "l",
+        "2": "z",
+        "3": "e",
+        "4": "a",
+        "5": "s",
+        "6": "g",
+        "7": "t",
+        "8": "b",
+        "9": "g",
+        "$": "s",
+        "@": "a",
+        "!": "i",
+    }
+)
+
 
 def _normalize_url(url: str) -> str:
     value = (url or "").strip()
@@ -128,6 +163,58 @@ def _shannon_entropy(text: str) -> float:
     return -sum((count / length) * math.log2(count / length) for count in frequencies.values())
 
 
+def _normalize_confusable(token: str) -> str:
+    return token.lower().translate(CONFUSABLE_CHAR_MAP)
+
+
+def _is_single_edit_apart(left: str, right: str) -> bool:
+    if left == right:
+        return False
+    if abs(len(left) - len(right)) > 1:
+        return False
+
+    i = 0
+    j = 0
+    edits = 0
+    while i < len(left) and j < len(right):
+        if left[i] == right[j]:
+            i += 1
+            j += 1
+            continue
+        edits += 1
+        if edits > 1:
+            return False
+        if len(left) == len(right):
+            i += 1
+            j += 1
+        elif len(left) > len(right):
+            i += 1
+        else:
+            j += 1
+
+    if i < len(left) or j < len(right):
+        edits += 1
+    return edits == 1
+
+
+def _count_brand_typos(tokens: list[str]) -> int:
+    hits: set[str] = set()
+    for token in tokens:
+        raw = token.lower()
+        normalized = _normalize_confusable(token)
+        if len(normalized) < 5:
+            continue
+        for brand in KNOWN_BRANDS:
+            if normalized == brand and raw != brand:
+                hits.add(brand)
+                continue
+            if normalized == brand:
+                continue
+            if _is_single_edit_apart(normalized, brand):
+                hits.add(brand)
+    return len(hits)
+
+
 def extract_url_features(url: str) -> dict[str, float]:
     """Extracts numeric features from a URL string."""
     normalized = _normalize_url(url)
@@ -147,6 +234,7 @@ def extract_url_features(url: str) -> dict[str, float]:
     suspicious_hits = sum(keyword in lowered for keyword in SUSPICIOUS_KEYWORDS)
     host_suspicious_hits = sum(token in SUSPICIOUS_KEYWORDS for token in host_tokens)
     host_threat_hits = sum(token in THREAT_KEYWORDS for token in host_tokens)
+    brand_typo_hits = _count_brand_typos(host_tokens)
     subdomain_count = max(hostname.count(".") - 1, 0)
     query_param_count = query.count("&") + 1 if query else 0
 
@@ -182,8 +270,9 @@ def extract_url_features(url: str) -> dict[str, float]:
         "suspicious_keyword_hits": float(suspicious_hits),
         "host_suspicious_keyword_hits": float(host_suspicious_hits),
         "host_threat_keyword_hits": float(host_threat_hits),
+        "brand_typo_hits": float(brand_typo_hits),
         "contains_login_hint": float(any(word in lowered for word in ("login", "signin", "verify"))),
-        "contains_security_hint": float(any(word in lowered for word in ("secure", "update", "confirm"))),
+        "contains_security_hint": float(any(word in lowered for word in ("secure", "security", "update", "confirm"))),
         "entropy": float(_shannon_entropy(normalized)),
         "token_count": float(len(token_candidates)),
         "avg_token_length": float(sum(len(token) for token in token_candidates) / max(len(token_candidates), 1)),

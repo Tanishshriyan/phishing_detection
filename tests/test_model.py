@@ -73,3 +73,26 @@ def test_train_and_predict_roundtrip():
 
     neutral_render_url = predict_url("https://portfolio-demo.onrender.com", artifact=loaded)
     assert neutral_render_url["is_phishing"] is False
+
+
+def test_detection_quality_on_challenging_links():
+    challenge_cases = [
+        ("https://accounts.google.com", False),
+        ("https://openai.com/blog", False),
+        ("https://paypal.com", False),
+        ("https://paypa1.com/security-check", True),
+        ("https://goog1e-auth.com/verify", True),
+        ("https://micr0soft-login-alert.net/login", True),
+        ("https://netfIix-account-help.com/update", True),
+        ("http://bit.ly/security-check", True),
+    ]
+
+    results = [predict_url(url) for url, _ in challenge_cases]
+    matches = sum(result["is_phishing"] == expected for result, (_, expected) in zip(results, challenge_cases))
+    recall_denominator = sum(1 for _, expected in challenge_cases if expected)
+    recall_numerator = sum(
+        1 for result, (_, expected) in zip(results, challenge_cases) if expected and result["is_phishing"] is True
+    )
+
+    assert matches >= 7
+    assert recall_numerator / recall_denominator >= 0.8

@@ -96,6 +96,11 @@ CURATED_PHISHING_URLS = [
     "https://malware-security-check.pages.dev/login",
     "http://paypal-login-security.example.com/verify-account",
     "https://www.apple.com.co",
+    "https://paypa1-security-update.com/verify",
+    "https://goog1e-docs-auth.com/login",
+    "https://micr0soft-account-alert.net/verify",
+    "https://netf1ix-billing-help.com/update-payment",
+    "http://bit.ly/security-check",
 ]
 
 

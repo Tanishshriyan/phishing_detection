@@ -128,6 +128,7 @@ def _heuristic_assessment(url: str, features: dict[str, float]) -> tuple[float, 
     suspicious_hits = features.get("suspicious_keyword_hits", 0.0)
     host_threat_hits = features.get("host_threat_keyword_hits", 0.0)
     uses_generic_hosting = features.get("has_generic_hosting_domain", 0.0) >= 1
+    brand_typo_hits = features.get("brand_typo_hits", 0.0)
 
     if brand_hits:
         score += 3.0
@@ -135,6 +136,9 @@ def _heuristic_assessment(url: str, features: dict[str, float]) -> tuple[float, 
     if embedded_domain_hits:
         score += 2.6
         signals.append(f"embedded-official-domain:{','.join(embedded_domain_hits[:3])}")
+    if brand_typo_hits >= 1 and not official_brand_hits:
+        score += 2.8
+        signals.append("typosquatted-brand-host")
     if uses_generic_hosting and host_threat_hits >= 1:
         score += 2.6
         signals.append("generic-hosting-phishing-keywords")
@@ -154,6 +158,12 @@ def _heuristic_assessment(url: str, features: dict[str, float]) -> tuple[float, 
     if features.get("has_shortener", 0) >= 1:
         score += 1.5
         signals.append("url-shortener")
+        if suspicious_hits >= 1:
+            score += 2.2
+            signals.append("shortener-with-phishing-keywords")
+        if features.get("contains_login_hint", 0) >= 1 or features.get("contains_security_hint", 0) >= 1:
+            score += 1.8
+            signals.append("shortener-credential-lure")
     if suspicious_hits >= 1:
         score += 1.2
         signals.append("phishing-keywords")
@@ -189,6 +199,11 @@ def _heuristic_assessment(url: str, features: dict[str, float]) -> tuple[float, 
         or bool(embedded_domain_hits)
         or (brand_hits and suspicious_hits >= 1)
         or (features.get("has_ip_address", 0) >= 1 and suspicious_hits >= 1)
+        or (brand_typo_hits >= 1 and suspicious_hits >= 1)
+        or (
+            features.get("has_shortener", 0) >= 1
+            and (suspicious_hits >= 1 or features.get("contains_login_hint", 0) >= 1 or features.get("contains_security_hint", 0) >= 1)
+        )
         or (
             uses_generic_hosting
             and host_threat_hits >= 1
